@@ -264,13 +264,13 @@ save_enum!(PpuAddrByte { Hi, Lo });
 // PPU VRAM. This implements the same Mem trait that the CPU memory does.
 
 pub struct Vram {
-    pub mapper: Rc<RefCell<Box<Mapper + Send>>>,
+    pub mapper: Rc<RefCell<Box<dyn Mapper + Send>>>,
     pub nametables: [u8; 0x800], // 2 nametables, 0x400 each. FIXME: Not correct for all mappers.
     pub palette: [u8; 0x20],
 }
 
 impl Vram {
-    pub fn new(mapper: Rc<RefCell<Box<Mapper + Send>>>) -> Vram {
+    pub fn new(mapper: Rc<RefCell<Box<dyn Mapper + Send>>>) -> Vram {
         Vram {
             mapper: mapper,
             nametables: [0; 0x800],

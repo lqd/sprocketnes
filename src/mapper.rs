@@ -23,11 +23,11 @@ pub trait Mapper {
     fn next_scanline(&mut self) -> MapperResult;
 }
 
-pub fn create_mapper(rom: Box<Rom>) -> Box<Mapper + Send> {
+pub fn create_mapper(rom: Box<Rom>) -> Box<dyn Mapper + Send> {
     match rom.header.ines_mapper() {
-        0 => Box::new(Nrom { rom: rom }) as Box<Mapper + Send>,
-        1 => Box::new(SxRom::new(rom)) as Box<Mapper + Send>,
-        4 => Box::new(TxRom::new(rom)) as Box<Mapper + Send>,
+        0 => Box::new(Nrom { rom: rom }) as Box<dyn Mapper + Send>,
+        1 => Box::new(SxRom::new(rom)) as Box<dyn Mapper + Send>,
+        4 => Box::new(TxRom::new(rom)) as Box<dyn Mapper + Send>,
         _ => panic!("unsupported mapper"),
     }
 }
@@ -344,9 +344,9 @@ impl Mapper for TxRom {
                 // Bank data.
                 let bank_update_select = self.regs.bank_select.bank_update_select() as usize;
                 match bank_update_select {
-                    0...1 => self.chr_banks_2k[bank_update_select] = val,
-                    2...5 => self.chr_banks_1k[bank_update_select - 2] = val,
-                    6...7 => self.prg_banks[bank_update_select - 6] = val,
+                    0..=1 => self.chr_banks_2k[bank_update_select] = val,
+                    2..=5 => self.chr_banks_1k[bank_update_select - 2] = val,
+                    6..=7 => self.prg_banks[bank_update_select - 6] = val,
                     _ => panic!(),
                 }
             }
@@ -368,12 +368,12 @@ impl Mapper for TxRom {
 
     fn chr_loadb(&mut self, addr: u16) -> u8 {
         let (bank, two_kb) = match (addr, self.regs.bank_select.chr_a12_inversion()) {
-            (0x0000...0x07ff, false) | (0x1000...0x17ff, true) => (self.chr_banks_2k[0], true),
-            (0x0800...0x0fff, false) | (0x1800...0x1fff, true) => (self.chr_banks_2k[1], true),
-            (0x1000...0x13ff, false) | (0x0000...0x03ff, true) => (self.chr_banks_1k[0], false),
-            (0x1400...0x17ff, false) | (0x0400...0x07ff, true) => (self.chr_banks_1k[1], false),
-            (0x1800...0x1bff, false) | (0x0800...0x0bff, true) => (self.chr_banks_1k[2], false),
-            (0x1c00...0x1fff, false) | (0x0c00...0x0fff, true) => (self.chr_banks_1k[3], false),
+            (0x0000..=0x07ff, false) | (0x1000..=0x17ff, true) => (self.chr_banks_2k[0], true),
+            (0x0800..=0x0fff, false) | (0x1800..=0x1fff, true) => (self.chr_banks_2k[1], true),
+            (0x1000..=0x13ff, false) | (0x0000..=0x03ff, true) => (self.chr_banks_1k[0], false),
+            (0x1400..=0x17ff, false) | (0x0400..=0x07ff, true) => (self.chr_banks_1k[1], false),
+            (0x1800..=0x1bff, false) | (0x0800..=0x0bff, true) => (self.chr_banks_1k[2], false),
+            (0x1c00..=0x1fff, false) | (0x0c00..=0x0fff, true) => (self.chr_banks_1k[3], false),
             _ => return 0,
         };
         if two_kb {
