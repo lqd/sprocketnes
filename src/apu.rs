@@ -468,10 +468,10 @@ impl Mem for Apu {
     }
     fn storeb(&mut self, addr: u16, val: u8) {
         match addr {
-            0x4000...0x4003 => self.update_pulse(addr, val, 0),
-            0x4004...0x4007 => self.update_pulse(addr, val, 1),
-            0x4008...0x400b => self.regs.triangle.storeb(addr, val),
-            0x400c...0x400f => self.update_noise(addr, val),
+            0x4000..=0x4003 => self.update_pulse(addr, val, 0),
+            0x4004..=0x4007 => self.update_pulse(addr, val, 1),
+            0x4008..=0x400b => self.regs.triangle.storeb(addr, val),
+            0x400c..=0x400f => self.update_noise(addr, val),
             0x4015 => self.update_status(val),
             _ => {} // TODO
         }
