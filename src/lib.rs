@@ -81,7 +81,7 @@ fn record_fps(stats: &mut Stats) {
         return;
     }
 
-    if !true {
+    if true {
         assert!(stats.addrs_visited.is_empty());
         assert!(stats.addrs_not_visited.is_empty());
 
@@ -90,32 +90,60 @@ fn record_fps(stats: &mut Stats) {
             .addrs_not_visited
             .extend(stats.branches_not_taken.iter());
 
-        let addrs_visited_delta: HashSet<_> = stats
-            .addrs_visited
-            .intersection(&stats.addrs_visited_old)
-            .collect();
-        let addrs_not_visited_delta: HashSet<_> = stats
-            .addrs_not_visited
-            .intersection(&stats.addrs_not_visited_old)
-            .collect();
-        println!(
-            "{} -> {} addresses visited, stable: {} {:.4}%, {} -> {} addresses not visited, stable: {}, {:.4}%",
-            stats.addrs_visited_old.len(),
-            stats.addrs_visited.len(),
-            addrs_visited_delta.len(),
-            100.0 * addrs_visited_delta.len() as f64 / stats.addrs_visited.len() as f64,
-            stats.addrs_not_visited_old.len(),
-            stats.addrs_not_visited.len(),
-            addrs_not_visited_delta.len(),
-            100.0 * addrs_not_visited_delta.len() as f64 / stats.addrs_not_visited.len() as f64,
-        );
+        // let addrs_visited_delta: HashSet<_> = stats
+        //     .addrs_visited
+        //     .intersection(&stats.addrs_visited_old)
+        //     .collect();
+        // let addrs_not_visited_delta: HashSet<_> = stats
+        //     .addrs_not_visited
+        //     .intersection(&stats.addrs_not_visited_old)
+        //     .collect();
 
-        stats.branches_taken.clear();
-        stats.branches_not_taken.clear();
+        // println!(
+        //     "{} -> {} addresses visited, stable: {} {:.4}%, {} -> {} addresses not visited, stable: {}, {:.4}%",
+        //     stats.addrs_visited_old.len(),
+        //     stats.addrs_visited.len(),
+        //     addrs_visited_delta.len(),
+        //     100.0 * addrs_visited_delta.len() as f64 / stats.addrs_visited.len() as f64,
+        //     stats.addrs_not_visited_old.len(),
+        //     stats.addrs_not_visited.len(),
+        //     addrs_not_visited_delta.len(),
+        //     100.0 * addrs_not_visited_delta.len() as f64 / stats.addrs_not_visited.len() as f64,
+        // );
+    }
+   
+    if true {
+        assert!(stats.memory_reads.is_empty());
+        stats
+            .memory_reads
+            .extend(stats.loads.iter().map(|&(_, addr)| addr));
 
-        stats.addrs_visited_old = smem::replace(&mut stats.addrs_visited, Default::default());
-        stats.addrs_not_visited_old =
-            smem::replace(&mut stats.addrs_not_visited, Default::default());
+        assert!(stats.memory_writes.is_empty());
+        stats
+            .memory_writes
+            .extend(stats.stores.iter().map(|&(_, addr)| addr));
+
+        // let memory_reads_delta: HashSet<_> = stats
+        //     .memory_reads
+        //     .intersection(&stats.memory_reads_old)
+        //     .collect();
+
+        // let memory_writes_delta: HashSet<_> = stats
+        //     .memory_writes
+        //     .intersection(&stats.memory_writes_old)
+        //     .collect();
+
+        // println!(
+        //     "memory: reads {} -> {} , stable: {} {:.0}%, writes {} -> {} , stable: {} {:.0}%",
+        //     stats.memory_reads_old.len(),
+        //     stats.memory_reads.len(),
+        //     memory_reads_delta.len(),
+        //     100.0 * memory_reads_delta.len() as f64 / stats.memory_reads.len() as f64,
+        //     stats.memory_writes_old.len(),
+        //     stats.memory_writes.len(),
+        //     memory_writes_delta.len(),
+        //     100.0 * memory_writes_delta.len() as f64 / stats.memory_writes.len() as f64,
+        // );
     }
 
     let now = time::precise_time_s();
@@ -147,45 +175,16 @@ fn record_fps(stats: &mut Stats) {
         stats.frames += 1;
     }
 
-    if true {
-        assert!(stats.memory_reads.is_empty());
-        stats
-            .memory_reads
-            .extend(stats.loads.iter().map(|&(_, addr)| addr));
+    stats.branches_taken.clear();
+    stats.branches_not_taken.clear();
 
-        assert!(stats.memory_writes.is_empty());
-        stats
-            .memory_writes
-            .extend(stats.stores.iter().map(|&(_, addr)| addr));
+    stats.addrs_visited_old = smem::replace(&mut stats.addrs_visited, Default::default());
+    stats.addrs_not_visited_old = smem::replace(&mut stats.addrs_not_visited, Default::default());
+    stats.loads.clear();
+    stats.stores.clear();
 
-        let memory_reads_delta: HashSet<_> = stats
-            .memory_reads
-            .intersection(&stats.memory_reads_old)
-            .collect();
-
-        let memory_writes_delta: HashSet<_> = stats
-            .memory_writes
-            .intersection(&stats.memory_writes_old)
-            .collect();
-
-        println!(
-            "memory: reads {} -> {} , stable: {} {:.4}%, writes {} -> {} , stable: {} {:.4}%",
-            stats.memory_reads_old.len(),
-            stats.memory_reads.len(),
-            memory_reads_delta.len(),
-            100.0 * memory_reads_delta.len() as f64 / stats.memory_reads.len() as f64,
-            stats.memory_writes_old.len(),
-            stats.memory_writes.len(),
-            memory_writes_delta.len(),
-            100.0 * memory_writes_delta.len() as f64 / stats.memory_writes.len() as f64,
-        );
-
-        stats.loads.clear();
-        stats.stores.clear();
-
-        stats.memory_reads_old = smem::replace(&mut stats.memory_reads, Default::default());
-        stats.memory_writes_old = smem::replace(&mut stats.memory_writes, Default::default());
-    }
+    stats.memory_reads_old = smem::replace(&mut stats.memory_reads, Default::default());
+    stats.memory_writes_old = smem::replace(&mut stats.memory_writes, Default::default());
 }
 
 /// Starts the emulator main loop with a ROM and window scaling. Returns when the user presses ESC.
