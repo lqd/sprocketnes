@@ -4,8 +4,13 @@
 // Author: Patrick Walton
 //
 
-use audio::{self, OutputBuffer};
+#![cfg_attr(not(feature = "audio"), allow(dead_code))]
+#![cfg_attr(not(feature = "audio"), allow(unused_variables))]
+
+use audio::OutputBuffer;
 use mem::Mem;
+
+#[cfg(feature = "audio")]
 use speex::Resampler;
 use util::{Save, Xorshift};
 
@@ -448,9 +453,13 @@ struct SampleBuffer {
 pub struct Apu {
     regs: Regs,
 
+    #[cfg(feature = "audio")]
     sample_buffers: Box<[SampleBuffer; 5]>,
+
     sample_buffer_offset: usize,
     output_buffer: Option<*mut OutputBuffer>,
+
+    #[cfg(feature = "audio")]
     resampler: Resampler,
 
     pub cy: u64,
@@ -467,6 +476,7 @@ impl Mem for Apu {
         }
     }
     fn storeb(&mut self, addr: u16, val: u8) {
+        #[cfg(feature = "audio")]
         match addr {
             0x4000..=0x4003 => self.update_pulse(addr, val, 0),
             0x4004..=0x4007 => self.update_pulse(addr, val, 1),
@@ -488,6 +498,7 @@ impl Apu {
                 status: ApuStatus(0),
             },
 
+            #[cfg(feature = "audio")]
             sample_buffers: Box::new([
                 SampleBuffer {
                     samples: [0; SAMPLE_COUNT],
@@ -508,13 +519,18 @@ impl Apu {
 
             sample_buffer_offset: 0,
             output_buffer: output_buffer,
+
+            #[cfg(feature = "audio")]
             resampler: Resampler::new(1, NES_SAMPLE_RATE, OUTPUT_SAMPLE_RATE, 0).unwrap(),
 
             cy: 0,
             ticks: 0,
         }
     }
+}
 
+#[cfg(feature = "audio")]
+impl Apu {
     fn update_status(&mut self, val: u8) {
         self.regs.status = ApuStatus(val);
 

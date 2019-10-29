@@ -25,6 +25,7 @@ pub mod ppu;
 pub mod rom;
 
 // C library support
+#[cfg(feature = "audio")]
 pub mod speex;
 
 use apu::Apu;
@@ -170,6 +171,7 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
             cpu.irq();
         }
 
+        #[cfg(feature = "audio")]
         cpu.mem.apu.step(cpu.cy);
 
         if ppu_result.new_frame {
@@ -179,6 +181,8 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
             gfx.tick();
             gfx.composite(&mut *cpu.mem.ppu.screen);
             record_fps(&mut stats);
+
+            #[cfg(feature = "audio")]
             cpu.mem.apu.play_channels();
 
             match cpu.mem.input.check_input() {
