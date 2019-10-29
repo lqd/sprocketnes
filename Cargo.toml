@@ -1,8 +1,8 @@
 [package]
-
 name = "sprocketnes"
 version = "0.1.0"
 authors = [ "pcwalton@mimiga.net" ]
+build = "build.rs"
 
 [lib]
 name = "nes"
