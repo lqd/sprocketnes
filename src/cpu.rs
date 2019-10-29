@@ -687,6 +687,9 @@ pub struct Cpu<M: Mem> {
     pub cy: Cycles,
     regs: Regs,
     pub mem: M,
+    pub conditional_jump: bool,
+    pub branches_taken: Vec<(u16, u16)>,
+    pub branches_not_taken: Vec<(u16, u16)>,
 }
 
 /// The CPU implements Mem so that it can handle writes to the DMA register.
@@ -1100,8 +1103,12 @@ impl<M: Mem> Cpu<M> {
     // Branches
     fn bra_base(&mut self, cond: bool) {
         let disp = self.loadb_bump_pc() as i8;
+        let dest = (self.regs.pc as i32 + disp as i32) as u16;
         if cond {
-            self.regs.pc = (self.regs.pc as i32 + disp as i32) as u16;
+            self.branches_taken.push((self.regs.pc, dest));
+            self.regs.pc = dest;
+        } else {
+            self.branches_not_taken.push((self.regs.pc, dest));
         }
     }
     fn bpl(&mut self) {
@@ -1201,6 +1208,15 @@ impl<M: Mem> Cpu<M> {
         self.trace();
 
         let op = self.loadb_bump_pc();
+        match op {
+            0x10 | 0x30 | 0x50 | 0x70 | 0x90 | 0xb0 | 0xd0 | 0xf0 => {
+                self.conditional_jump = true;
+            }
+
+            _ => {
+                self.conditional_jump = false
+            }
+        }
         decode_op!(op, self);
 
         self.cy += CYCLE_TABLE[op as usize] as Cycles;
@@ -1234,6 +1250,9 @@ impl<M: Mem> Cpu<M> {
             cy: 0,
             regs: Regs::new(),
             mem: mem,
+            conditional_jump: false,
+            branches_taken: Vec::default(),
+            branches_not_taken: Vec::default(),
         }
     }
 }
