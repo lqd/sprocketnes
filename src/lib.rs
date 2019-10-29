@@ -59,6 +59,12 @@ struct Stats {
     addrs_not_visited: HashSet<(u16, u16)>,
     addrs_visited_old: HashSet<(u16, u16)>,
     addrs_not_visited_old: HashSet<(u16, u16)>,
+    loads: Vec<(char, u16)>,
+    stores: Vec<(char, u16)>,
+    memory_reads: HashSet<u16>,
+    memory_reads_old: HashSet<u16>,
+    memory_writes: HashSet<u16>,
+    memory_writes_old: HashSet<u16>,
 }
 
 impl Stats {
@@ -71,7 +77,14 @@ impl Stats {
 }
 
 fn record_fps(stats: &mut Stats) {
-    if true {
+    if !true {
+        return;
+    }
+
+    if !true {
+        assert!(stats.addrs_visited.is_empty());
+        assert!(stats.addrs_not_visited.is_empty());
+
         stats.addrs_visited.extend(stats.branches_taken.iter());
         stats
             .addrs_not_visited
@@ -97,8 +110,17 @@ fn record_fps(stats: &mut Stats) {
             100.0 * addrs_not_visited_delta.len() as f64 / stats.addrs_not_visited.len() as f64,
         );
 
-        let now = time::precise_time_s();
-        if now >= stats.last_time + 1f64 {
+        stats.branches_taken.clear();
+        stats.branches_not_taken.clear();
+
+        stats.addrs_visited_old = smem::replace(&mut stats.addrs_visited, Default::default());
+        stats.addrs_not_visited_old =
+            smem::replace(&mut stats.addrs_not_visited, Default::default());
+    }
+
+    let now = time::precise_time_s();
+    if now >= stats.last_time + 1f64 {
+        if true {
             println!(
                 "{} FPS - cond jumps: {:.4} /f - steps: {:.4} /f - cond jmps %: {:.4}% /f \
                  - branches taken: {} (uniq: {}), not taken: {} (uniq: {})",
@@ -116,19 +138,53 @@ fn record_fps(stats: &mut Stats) {
                 stats.branches_not_taken.len(),
                 stats.addrs_not_visited.len(),
             );
-            stats.frames = 0;
-            stats.conditional_jumps_s = 0;
-            stats.steps_s = 0;
-            stats.last_time = now;
-        } else {
-            stats.frames += 1;
-            stats.branches_taken.clear();
-            stats.branches_not_taken.clear();
         }
+        stats.frames = 0;
+        stats.conditional_jumps_s = 0;
+        stats.steps_s = 0;
+        stats.last_time = now;
+    } else {
+        stats.frames += 1;
+    }
 
-        stats.addrs_visited_old = smem::replace(&mut stats.addrs_visited, Default::default());
-        stats.addrs_not_visited_old =
-            smem::replace(&mut stats.addrs_not_visited, Default::default());
+    if true {
+        assert!(stats.memory_reads.is_empty());
+        stats
+            .memory_reads
+            .extend(stats.loads.iter().map(|&(_, addr)| addr));
+
+        assert!(stats.memory_writes.is_empty());
+        stats
+            .memory_writes
+            .extend(stats.stores.iter().map(|&(_, addr)| addr));
+
+        let memory_reads_delta: HashSet<_> = stats
+            .memory_reads
+            .intersection(&stats.memory_reads_old)
+            .collect();
+
+        let memory_writes_delta: HashSet<_> = stats
+            .memory_writes
+            .intersection(&stats.memory_writes_old)
+            .collect();
+
+        println!(
+            "memory: reads {} -> {} , stable: {} {:.4}%, writes {} -> {} , stable: {} {:.4}%",
+            stats.memory_reads_old.len(),
+            stats.memory_reads.len(),
+            memory_reads_delta.len(),
+            100.0 * memory_reads_delta.len() as f64 / stats.memory_reads.len() as f64,
+            stats.memory_writes_old.len(),
+            stats.memory_writes.len(),
+            memory_writes_delta.len(),
+            100.0 * memory_writes_delta.len() as f64 / stats.memory_writes.len() as f64,
+        );
+
+        stats.loads.clear();
+        stats.stores.clear();
+
+        stats.memory_reads_old = smem::replace(&mut stats.memory_reads, Default::default());
+        stats.memory_writes_old = smem::replace(&mut stats.memory_writes, Default::default());
     }
 }
 
@@ -178,8 +234,12 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
             std::mem::swap(&mut stats.branches_taken, &mut cpu.branches_taken);
             std::mem::swap(&mut stats.branches_not_taken, &mut cpu.branches_not_taken);
 
+            std::mem::swap(&mut stats.stores, &mut cpu.stores);
+            std::mem::swap(&mut stats.loads, &mut cpu.loads);
+
             gfx.tick();
             gfx.composite(&mut *cpu.mem.ppu.screen);
+
             record_fps(&mut stats);
 
             #[cfg(feature = "audio")]

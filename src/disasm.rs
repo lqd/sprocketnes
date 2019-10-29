@@ -42,10 +42,19 @@ impl<'a, M: Mem> Disassembler<'a, M> {
     fn lda(&mut self, am: String) -> String {
         (format!("LDA {}", am)).to_string()
     }
+    fn lda_imm(&mut self, am: String) -> String {
+        (format!("LDA {}", am)).to_string()
+    }
     fn ldx(&mut self, am: String) -> String {
         (format!("LDX {}", am)).to_string()
     }
+    fn ldx_imm(&mut self, am: String) -> String {
+        (format!("LDX {}", am)).to_string()
+    }
     fn ldy(&mut self, am: String) -> String {
+        (format!("LDY {}", am)).to_string()
+    }
+    fn ldy_imm(&mut self, am: String) -> String {
         (format!("LDY {}", am)).to_string()
     }
 

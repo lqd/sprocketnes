@@ -78,12 +78,17 @@ impl Regs {
 //
 
 trait AddressingMode<M: Mem> {
+    fn addr(&self) -> u16;
     fn load(&self, cpu: &mut Cpu<M>) -> u8;
     fn store(&self, cpu: &mut Cpu<M>, val: u8);
 }
 
+#[derive(Debug)]
 struct AccumulatorAddressingMode;
 impl<M: Mem> AddressingMode<M> for AccumulatorAddressingMode {
+    fn addr(&self) -> u16 {
+        unimplemented!("AccumulatorAddressingMode addr")
+    }
     fn load(&self, cpu: &mut Cpu<M>) -> u8 {
         cpu.regs.a
     }
@@ -92,8 +97,12 @@ impl<M: Mem> AddressingMode<M> for AccumulatorAddressingMode {
     }
 }
 
+#[derive(Debug)]
 struct ImmediateAddressingMode;
 impl<M: Mem> AddressingMode<M> for ImmediateAddressingMode {
+    fn addr(&self) -> u16 {
+        unimplemented!("ImmediateAddressingMode addr")
+    }
     fn load(&self, cpu: &mut Cpu<M>) -> u8 {
         cpu.loadb_bump_pc()
     }
@@ -103,6 +112,7 @@ impl<M: Mem> AddressingMode<M> for ImmediateAddressingMode {
     }
 }
 
+#[derive(Debug)]
 struct MemoryAddressingMode {
     val: u16,
 }
@@ -116,6 +126,9 @@ impl Deref for MemoryAddressingMode {
 }
 
 impl<M: Mem> AddressingMode<M> for MemoryAddressingMode {
+    fn addr(&self) -> u16 {
+        **self
+    }
     fn load(&self, cpu: &mut Cpu<M>) -> u8 {
         cpu.loadb(**self)
     }
@@ -143,7 +156,7 @@ macro_rules! decode_op {
             }
             0xa9 => {
                 let v = $this.immediate();
-                $this.lda(v)
+                $this.lda_imm(v)
             }
             0xad => {
                 let v = $this.absolute();
@@ -168,7 +181,7 @@ macro_rules! decode_op {
 
             0xa2 => {
                 let v = $this.immediate();
-                $this.ldx(v)
+                $this.ldx_imm(v)
             }
             0xa6 => {
                 let v = $this.zero_page();
@@ -189,7 +202,7 @@ macro_rules! decode_op {
 
             0xa0 => {
                 let v = $this.immediate();
-                $this.ldy(v)
+                $this.ldy_imm(v)
             }
             0xa4 => {
                 let v = $this.zero_page();
@@ -690,6 +703,8 @@ pub struct Cpu<M: Mem> {
     pub conditional_jump: bool,
     pub branches_taken: Vec<(u16, u16)>,
     pub branches_not_taken: Vec<(u16, u16)>,
+    pub loads: Vec<(char, u16)>,
+    pub stores: Vec<(char, u16)>,
 }
 
 /// The CPU implements Mem so that it can handle writes to the DMA register.
@@ -879,29 +894,53 @@ impl<M: Mem> Cpu<M> {
     //
 
     // Loads
+    #[inline(always)]
     fn lda<AM: AddressingMode<M>>(&mut self, am: AM) {
-        let val = am.load(self);
-        self.regs.a = self.set_zn(val)
+        self.loads.push(('a', am.addr()));
+        self.lda_imm(am);
     }
+    #[inline(always)]
+    fn lda_imm<AM: AddressingMode<M>>(&mut self, am: AM) {
+        let val = am.load(self);
+        self.regs.a = self.set_zn(val);
+    }
+    #[inline(always)]
     fn ldx<AM: AddressingMode<M>>(&mut self, am: AM) {
-        let val = am.load(self);
-        self.regs.x = self.set_zn(val)
+        self.loads.push(('x', am.addr()));
+        self.ldx_imm(am);
     }
+    #[inline(always)]
+    fn ldx_imm<AM: AddressingMode<M>>(&mut self, am: AM) {
+        let val = am.load(self);        
+        self.regs.x = self.set_zn(val);
+    }
+    #[inline(always)]
     fn ldy<AM: AddressingMode<M>>(&mut self, am: AM) {
+        self.loads.push(('y', am.addr()));
+        self.ldy_imm(am);
+    }
+    #[inline(always)]
+    fn ldy_imm<AM: AddressingMode<M>>(&mut self, am: AM) {
         let val = am.load(self);
-        self.regs.y = self.set_zn(val)
+        self.regs.y = self.set_zn(val);
     }
 
     // Stores
+    #[inline(always)]
     fn sta<AM: AddressingMode<M>>(&mut self, am: AM) {
+        self.stores.push(('a', am.addr()));
         let a = self.regs.a;
         am.store(self, a)
     }
+    #[inline(always)]
     fn stx<AM: AddressingMode<M>>(&mut self, am: AM) {
+        self.stores.push(('x', am.addr()));
         let x = self.regs.x;
         am.store(self, x)
     }
+    #[inline(always)]
     fn sty<AM: AddressingMode<M>>(&mut self, am: AM) {
+        self.stores.push(('y', am.addr()));
         let y = self.regs.y;
         am.store(self, y)
     }
@@ -1253,6 +1292,8 @@ impl<M: Mem> Cpu<M> {
             conditional_jump: false,
             branches_taken: Vec::default(),
             branches_not_taken: Vec::default(),
+            loads: Vec::default(),
+            stores: Vec::default(),
         }
     }
 }
