@@ -39,7 +39,7 @@ use rom::Rom;
 use util::Save;
 
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::mem as smem;
 use std::path::Path;
@@ -90,60 +90,95 @@ fn record_fps(stats: &mut Stats) {
             .addrs_not_visited
             .extend(stats.branches_not_taken.iter());
 
-        // let addrs_visited_delta: HashSet<_> = stats
-        //     .addrs_visited
-        //     .intersection(&stats.addrs_visited_old)
-        //     .collect();
-        // let addrs_not_visited_delta: HashSet<_> = stats
-        //     .addrs_not_visited
-        //     .intersection(&stats.addrs_not_visited_old)
-        //     .collect();
+        if !true {
+            let addrs_visited_delta: HashSet<_> = stats
+                .addrs_visited
+                .intersection(&stats.addrs_visited_old)
+                .collect();
+            let addrs_not_visited_delta: HashSet<_> = stats
+                .addrs_not_visited
+                .intersection(&stats.addrs_not_visited_old)
+                .collect();
 
-        // println!(
-        //     "{} -> {} addresses visited, stable: {} {:.4}%, {} -> {} addresses not visited, stable: {}, {:.4}%",
-        //     stats.addrs_visited_old.len(),
-        //     stats.addrs_visited.len(),
-        //     addrs_visited_delta.len(),
-        //     100.0 * addrs_visited_delta.len() as f64 / stats.addrs_visited.len() as f64,
-        //     stats.addrs_not_visited_old.len(),
-        //     stats.addrs_not_visited.len(),
-        //     addrs_not_visited_delta.len(),
-        //     100.0 * addrs_not_visited_delta.len() as f64 / stats.addrs_not_visited.len() as f64,
-        // );
+            println!(
+                "{} -> {} addresses visited, stable: {} {:.4}%, {} -> {} addresses not visited, stable: {}, {:.4}%",
+                stats.addrs_visited_old.len(),
+                stats.addrs_visited.len(),
+                addrs_visited_delta.len(),
+                100.0 * addrs_visited_delta.len() as f64 / stats.addrs_visited.len() as f64,
+                stats.addrs_not_visited_old.len(),
+                stats.addrs_not_visited.len(),
+                addrs_not_visited_delta.len(),
+                100.0 * addrs_not_visited_delta.len() as f64 / stats.addrs_not_visited.len() as f64,
+            );
+        }
     }
-   
+
     if true {
         assert!(stats.memory_reads.is_empty());
-        stats
-            .memory_reads
-            .extend(stats.loads.iter().map(|&(_, addr)| addr));
+        let loads: HashSet<_> = stats.loads.iter().map(|&(_, addr)| addr).collect();
+        stats.memory_reads.extend(loads.iter());
 
         assert!(stats.memory_writes.is_empty());
-        stats
-            .memory_writes
-            .extend(stats.stores.iter().map(|&(_, addr)| addr));
+        let stores: HashSet<_> = stats.stores.iter().map(|&(_, addr)| addr).collect();
+        stats.memory_writes.extend(stores.iter());
 
-        // let memory_reads_delta: HashSet<_> = stats
-        //     .memory_reads
-        //     .intersection(&stats.memory_reads_old)
-        //     .collect();
+        if !true {
+            if !true {
+                let mut reads_map: HashMap<&'static str, usize> = HashMap::default();
+                for addr in loads.iter() {
+                    let section = match *addr {
+                        addr if addr < 0x2000 => "ram",
+                        addr if addr < 0x4000 => "ppu",
+                        addr if addr == 0x4016 => "input",
+                        addr if addr <= 0x4018 => "apu",
+                        addr if addr < 0x6000 => "mapper",
+                        _ => "cartridge",
+                    };
 
-        // let memory_writes_delta: HashSet<_> = stats
-        //     .memory_writes
-        //     .intersection(&stats.memory_writes_old)
-        //     .collect();
+                    *reads_map.entry(section).or_insert(0) += 1;
+                }
 
-        // println!(
-        //     "memory: reads {} -> {} , stable: {} {:.0}%, writes {} -> {} , stable: {} {:.0}%",
-        //     stats.memory_reads_old.len(),
-        //     stats.memory_reads.len(),
-        //     memory_reads_delta.len(),
-        //     100.0 * memory_reads_delta.len() as f64 / stats.memory_reads.len() as f64,
-        //     stats.memory_writes_old.len(),
-        //     stats.memory_writes.len(),
-        //     memory_writes_delta.len(),
-        //     100.0 * memory_writes_delta.len() as f64 / stats.memory_writes.len() as f64,
-        // );
+                let mut writes_map: HashMap<&'static str, usize> = HashMap::default();
+                for addr in stores.iter() {
+                    let section = match *addr {
+                        addr if addr < 0x2000 => "ram",
+                        addr if addr < 0x4000 => "ppu",
+                        addr if addr == 0x4016 => "input",
+                        addr if addr <= 0x4018 => "apu",
+                        addr if addr < 0x6000 => "mapper",
+                        _ => "cartridge",
+                    };
+
+                    *writes_map.entry(section).or_insert(0) += 1;
+                }
+
+                println!("memory reads map: {:#?}", reads_map);
+                println!("memory writes map: {:#?}", writes_map);
+            }
+
+            let memory_reads_delta: HashSet<_> = stats
+                .memory_reads
+                .intersection(&stats.memory_reads_old)
+                .collect();
+
+            let memory_writes_delta: HashSet<_> = stats
+                .memory_writes
+                .intersection(&stats.memory_writes_old)
+                .collect();
+
+            println!(
+                "memory: reads {} -> {} , stable: {} {:.0}%, writes {} -> {} , stable: {} {:.0}%",
+                stats.memory_reads_old.len(),
+                stats.memory_reads.len(),
+                memory_reads_delta.len(),
+                100.0 * memory_reads_delta.len() as f64 / stats.memory_reads.len() as f64,
+                stats.memory_writes_old.len(),
+                stats.memory_writes.len(),
+                memory_writes_delta.len(),
+                100.0 * memory_writes_delta.len() as f64 / stats.memory_writes.len() as f64,
+            );
+        }
     }
 
     let now = time::precise_time_s();
