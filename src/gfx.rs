@@ -367,6 +367,7 @@ pub enum Scale {
     Scale1x,
     Scale2x,
     Scale3x,
+    Scale4x,
 }
 
 impl Scale {
@@ -375,6 +376,7 @@ impl Scale {
             Scale::Scale1x => 1,
             Scale::Scale2x => 2,
             Scale::Scale3x => 3,
+            Scale::Scale4x => 4,
         }
     }
 }

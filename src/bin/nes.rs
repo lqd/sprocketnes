@@ -22,6 +22,7 @@ fn usage() {
     println!("    -1 scale by 1x (default)");
     println!("    -2 scale by 2x");
     println!("    -3 scale by 3x");
+    println!("    -4 scale by 4x");
 }
 
 fn parse_args() -> Option<Options> {
@@ -32,22 +33,15 @@ fn parse_args() -> Option<Options> {
 
     for arg in env::args().skip(1) {
         match &*arg {
-            "-1" => {
-                options.scale = Scale::Scale1x;
-            }
-            "-2" => {
-                options.scale = Scale::Scale2x;
-            }
-            "-3" => {
-                options.scale = Scale::Scale3x;
-            }
+            "-1" => options.scale = Scale::Scale1x,
+            "-2" => options.scale = Scale::Scale2x,
+            "-3" => options.scale = Scale::Scale3x,
+            "-4" => options.scale = Scale::Scale4x,
             _ if arg.starts_with('-') => {
                 usage();
                 return None;
             }
-            _ => {
-                options.rom_path = arg;
-            }
+            _ => options.rom_path = arg,
         }
     }
 
