@@ -76,7 +76,7 @@ impl Stats {
     }
 }
 
-fn record_fps(stats: &mut Stats) {
+fn record_fps(stats: &mut Stats, now: f64, prefix: &str, print: bool) {
     if !true {
         return;
     }
@@ -90,7 +90,7 @@ fn record_fps(stats: &mut Stats) {
             .addrs_not_visited
             .extend(stats.branches_not_taken.iter());
 
-        if !true {
+        if print && !true {
             let addrs_visited_delta: HashSet<_> = stats
                 .addrs_visited
                 .intersection(&stats.addrs_visited_old)
@@ -101,7 +101,9 @@ fn record_fps(stats: &mut Stats) {
                 .collect();
 
             println!(
-                "{} -> {} addresses visited, stable: {} {:.4}%, {} -> {} addresses not visited, stable: {}, {:.4}%",
+                "{} at {} - {} -> {} addresses visited, stable: {} {:.4}%, {} -> {} addresses not visited, stable: {}, {:.4}%",
+                prefix, 
+                stats.frames,
                 stats.addrs_visited_old.len(),
                 stats.addrs_visited.len(),
                 addrs_visited_delta.len(),
@@ -122,41 +124,41 @@ fn record_fps(stats: &mut Stats) {
         assert!(stats.memory_writes.is_empty());
         let stores: HashSet<_> = stats.stores.iter().map(|&(_, addr)| addr).collect();
         stats.memory_writes.extend(stores.iter());
+        
+        if print && !true {
+            let mut reads_map: HashMap<&'static str, usize> = HashMap::default();
+            for addr in loads.iter() {
+                let section = match *addr {
+                    addr if addr < 0x2000 => "ram",
+                    addr if addr < 0x4000 => "ppu",
+                    addr if addr == 0x4016 => "input",
+                    addr if addr <= 0x4018 => "apu",
+                    addr if addr < 0x6000 => "mapper",
+                    _ => "cartridge",
+                };
 
-        if !true {
-            if !true {
-                let mut reads_map: HashMap<&'static str, usize> = HashMap::default();
-                for addr in loads.iter() {
-                    let section = match *addr {
-                        addr if addr < 0x2000 => "ram",
-                        addr if addr < 0x4000 => "ppu",
-                        addr if addr == 0x4016 => "input",
-                        addr if addr <= 0x4018 => "apu",
-                        addr if addr < 0x6000 => "mapper",
-                        _ => "cartridge",
-                    };
-
-                    *reads_map.entry(section).or_insert(0) += 1;
-                }
-
-                let mut writes_map: HashMap<&'static str, usize> = HashMap::default();
-                for addr in stores.iter() {
-                    let section = match *addr {
-                        addr if addr < 0x2000 => "ram",
-                        addr if addr < 0x4000 => "ppu",
-                        addr if addr == 0x4016 => "input",
-                        addr if addr <= 0x4018 => "apu",
-                        addr if addr < 0x6000 => "mapper",
-                        _ => "cartridge",
-                    };
-
-                    *writes_map.entry(section).or_insert(0) += 1;
-                }
-
-                println!("memory reads map: {:#?}", reads_map);
-                println!("memory writes map: {:#?}", writes_map);
+                *reads_map.entry(section).or_insert(0) += 1;
             }
 
+            let mut writes_map: HashMap<&'static str, usize> = HashMap::default();
+            for addr in stores.iter() {
+                let section = match *addr {
+                    addr if addr < 0x2000 => "ram",
+                    addr if addr < 0x4000 => "ppu",
+                    addr if addr == 0x4016 => "input",
+                    addr if addr <= 0x4018 => "apu",
+                    addr if addr < 0x6000 => "mapper",
+                    _ => "cartridge",
+                };
+
+                *writes_map.entry(section).or_insert(0) += 1;
+            }
+
+            println!("{} memory reads map: {:#?}", prefix, reads_map);
+            println!("{} memory writes map: {:#?}", prefix, writes_map);
+        }
+
+        if print && !true {
             let memory_reads_delta: HashSet<_> = stats
                 .memory_reads
                 .intersection(&stats.memory_reads_old)
@@ -168,7 +170,9 @@ fn record_fps(stats: &mut Stats) {
                 .collect();
 
             println!(
-                "memory: reads {} -> {} , stable: {} {:.0}%, writes {} -> {} , stable: {} {:.0}%",
+                "{} at {} -  memory: reads {} -> {} , stable: {} {:.0}%, writes {} -> {} , stable: {} {:.0}%",
+                prefix,
+                stats.frames,
                 stats.memory_reads_old.len(),
                 stats.memory_reads.len(),
                 memory_reads_delta.len(),
@@ -181,12 +185,12 @@ fn record_fps(stats: &mut Stats) {
         }
     }
 
-    let now = time::precise_time_s();
     if now >= stats.last_time + 1f64 {
-        if true {
+        if print && !true {
             println!(
-                "{} FPS - cond jumps: {:.4} /f - steps: {:.4} /f - cond jmps %: {:.4}% /f \
+                "{} {} FPS - cond jumps: {:.4} /f - steps: {:.4} /f - cond jmps %: {:.4}% /f \
                  - branches taken: {} (uniq: {}), not taken: {} (uniq: {})",
+                prefix,
                 stats.frames,
                 // stats.conditional_jumps,
                 stats.conditional_jumps_s as f64 / stats.frames as f64,
@@ -227,31 +231,52 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
     let rom = Box::new(rom);
     println!("Loaded ROM: {}", rom.header);
 
-    let (mut gfx, sdl) = Gfx::new(scale);
+    let (mut gfx, sdl) = Gfx::new(scale, None);
+    let (mut gfx1, sdl) = Gfx::new(scale, Some(sdl));
     let audio_buffer = audio::open(&sdl);
-
     let mapper: Box<dyn Mapper + Send> = mapper::create_mapper(rom);
     let mapper = Rc::new(RefCell::new(mapper));
-    let ppu = Ppu::new(Vram::new(mapper.clone()), Oam::new());
     let input = Input::new(sdl);
-    let apu = Apu::new(audio_buffer);
-    let memmap = MemMap::new(ppu, input, mapper, apu);
+
+    // NES 0
+    let ppu = Ppu::new(Vram::new(mapper.clone()), Oam::new());
+    let apu = Apu::new(audio_buffer.clone());
+    let memmap = MemMap::new(ppu, input.clone(), mapper.clone(), apu);
     let mut cpu = Cpu::new(memmap);
+
+    // NES 1
+    let ppu1 = Ppu::new(Vram::new(mapper.clone()), Oam::new());
+    let apu1 = Apu::new(audio_buffer.clone());
+    let memmap1 = MemMap::new(ppu1, input, mapper, apu1);
+    let mut cpu1 = Cpu::new(memmap1);
 
     // TODO: Add a flag to not reset for nestest.log
     cpu.reset();
+    cpu1.reset();
 
     let mut stats = Stats::new();
+    let mut stats1 = Stats::new();
+
+    let mut started = false;
 
     loop {
         cpu.step();
+        cpu1.step();
 
         stats.steps += 1;
         stats.steps_s += 1;
 
+        stats1.steps += 1;
+        stats1.steps_s += 1;
+
         if cpu.conditional_jump {
             stats.conditional_jumps += 1;
             stats.conditional_jumps_s += 1;
+        }
+
+        if cpu1.conditional_jump {
+            stats1.conditional_jumps += 1;
+            stats1.conditional_jumps_s += 1;
         }
 
         let ppu_result = cpu.mem.ppu.step(cpu.cy);
@@ -261,8 +286,25 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
             cpu.irq();
         }
 
+        let ppu_result1 = cpu1.mem.ppu.step(cpu1.cy);
+        if ppu_result1.vblank_nmi {
+            cpu1.nmi();
+        } else if ppu_result1.scanline_irq {
+            cpu1.irq();
+        }
+
         #[cfg(feature = "audio")]
-        cpu.mem.apu.step(cpu.cy);
+        {
+            cpu.mem.apu.step(cpu.cy);
+            cpu1.mem.apu.step(cpu1.cy);
+        }
+
+        let now = time::precise_time_s();
+
+        if ppu_result1.new_frame || ppu_result.new_frame {
+            // println!("{} - new frame, cpu0: {}, cpu1: {}", stats.frames, ppu_result.new_frame, ppu_result1.new_frame);
+            // println!("cpu0: {:?}, cpu1: {:?}", cpu.mem.input.gamepad_0, cpu1.mem.input.gamepad_0);
+        }
 
         if ppu_result.new_frame {
             std::mem::swap(&mut stats.branches_taken, &mut cpu.branches_taken);
@@ -272,9 +314,12 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
             std::mem::swap(&mut stats.loads, &mut cpu.loads);
 
             gfx.tick();
-            gfx.composite(&mut *cpu.mem.ppu.screen);
+            gfx.composite(&mut cpu.mem.ppu.screen);
 
-            record_fps(&mut stats);
+            gfx1.tick();
+            gfx1.composite(&mut cpu1.mem.ppu.screen);
+
+            record_fps(&mut stats, now, "cpu0", true);
 
             #[cfg(feature = "audio")]
             cpu.mem.apu.play_channels();
@@ -291,6 +336,30 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
                     gfx.status_line.set("Loaded state".to_string());
                 }
             }
+
+            // cpu.save(&mut File::create(&Path::new("state.sav")).unwrap());
+            // cpu1.load(&mut File::open(&Path::new("state.sav")).unwrap());
+
+            cpu1.mem.input.gamepad_0 = cpu.mem.input.gamepad_0.clone();
+
+            if started {
+                cpu1.mem.input.gamepad_0.right = true;
+            }
+
+            if !started && cpu1.mem.input.gamepad_0.start {
+                println!("starting feeding input to cpu1");
+                started = true;
+            }
+        }
+
+        if ppu_result1.new_frame {
+            std::mem::swap(&mut stats1.branches_taken, &mut cpu1.branches_taken);
+            std::mem::swap(&mut stats1.branches_not_taken, &mut cpu1.branches_not_taken);
+
+            std::mem::swap(&mut stats1.stores, &mut cpu1.stores);
+            std::mem::swap(&mut stats1.loads, &mut cpu1.loads);
+
+            record_fps(&mut stats1, now, "cpu1", true);            
         }
     }
 

@@ -390,18 +390,26 @@ pub struct Gfx {
 }
 
 impl Gfx {
-    pub fn new(scale: Scale) -> (Gfx, Sdl) {
+    pub fn new(scale: Scale, sdl: Option<Sdl>) -> (Gfx, Sdl) {
         // FIXME: Handle SDL better
 
-        let sdl = sdl2::init().unwrap();
+        let is_original = sdl.is_none();
+        let title = if is_original { "nes - cpu0" } else { "nes - cpu1" };
+
+        let sdl = sdl.unwrap_or_else(|| sdl2::init().unwrap());
         let video_subsystem = sdl.video().unwrap();
 
         let mut window_builder = video_subsystem.window(
-            "sprocketnes",
+            &title,
             (SCREEN_WIDTH as usize * scale.factor()) as u32,
             (SCREEN_HEIGHT as usize * scale.factor()) as u32,
         );
-        let window = window_builder.position_centered().build().unwrap();
+
+        // let window = window_builder.position_centered().minimized().build().unwrap();
+
+        let root_x = 3320;
+        let position_x = if is_original { root_x } else { root_x + 256 + 10 };
+        let window = window_builder.position(position_x, 800).build().unwrap();
 
         let renderer = window
             .into_canvas()
