@@ -23,6 +23,7 @@ const STROBE_STATE_DOWN: u8 = 5;
 const STROBE_STATE_LEFT: u8 = 6;
 const STROBE_STATE_RIGHT: u8 = 7;
 
+#[derive(Clone, PartialEq, Debug)]
 struct StrobeState {
     val: u8,
 }
@@ -68,6 +69,7 @@ impl StrobeState {
 // The standard NES game pad state
 //
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct GamePadState {
     pub left: bool,
     pub down: bool,
@@ -81,6 +83,7 @@ pub struct GamePadState {
     strobe_state: StrobeState,
 }
 
+#[derive(Clone)]
 pub struct Input {
     pub gamepad_0: GamePadState,
     sdl: Sdl, // FIXME: Use a `&'a mut EventPump` instead
@@ -114,7 +117,7 @@ impl Input {
         }
     }
 
-    fn handle_gamepad_event(&mut self, key: Keycode, down: bool) {
+    pub fn handle_gamepad_event(&mut self, key: Keycode, down: bool) {
         match key {
             Keycode::Left => self.gamepad_0.left = down,
             Keycode::Down => self.gamepad_0.down = down,
